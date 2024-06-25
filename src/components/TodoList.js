@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { FaTrashAlt, FaThumbtack } from 'react-icons/fa';
+import { AiFillCaretUp, AiFillCaretDown } from 'react-icons/ai';
 import database from '../firebase';
 import { ref, onValue, push, remove, update } from 'firebase/database';
 import './TodoList.css';
@@ -16,7 +17,11 @@ const TodoList = () => {
       for (let id in todoList) {
         todosArray.push({ id, ...todoList[id] });
       }
-      todosArray.sort((a, b) => a.order - b.order);
+      todosArray.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return a.order - b.order;
+      });
       setTodos(todosArray);
     });
   }, []);
@@ -27,7 +32,7 @@ const TodoList = () => {
     const newOrder = todos.length ? todos[todos.length - 1].order + 1 : 0;
     const todo = {
       text: newTodo,
-      completed: false,
+      pinned: false,
       order: newOrder
     };
     push(todoRef, todo);
@@ -39,10 +44,10 @@ const TodoList = () => {
     remove(todoRef);
   };
 
-  const toggleComplete = (id) => {
+  const pinTodo = (id) => {
     const todoRef = ref(database, `todos/${id}`);
     const updatedTodo = todos.find(todo => todo.id === id);
-    update(todoRef, { completed: !updatedTodo.completed });
+    update(todoRef, { pinned: !updatedTodo.pinned });
   };
 
   const moveItem = (id, direction) => {
@@ -72,52 +77,50 @@ const TodoList = () => {
   return (
     <div className="todo-container">
       <h1 className='title'>Todo List</h1>
-      <div>
-        <input
-          className="todo-input"
-          type="text"
-          value={newTodo}
-          onChange={(e) => setNewTodo(e.target.value)}
-          onKeyPress={handleKeyPress}
-        />&nbsp;
-        <button className="add-button" onClick={addTodo}>Add</button><br/><br/><br/>
+      
+      <ul className="todo-list">
+        {todos.map((todo, index) => (
+          <li key={todo.id} className={`todo-item ${todo.pinned ? 'pinned' : ''}`}>
+            <span className="todo-text">{todo.text}</span>
+            <div className="button-group">
+              <button
+                className="move-button"
+                onClick={() => moveItem(todo.id, -1)}
+                disabled={index === 0 || todos[index].pinned || (index === 1 && todos[0].pinned)}
+              >
+                <AiFillCaretUp />
+              </button>
+              <button
+                className="move-button"
+                onClick={() => moveItem(todo.id, 1)}
+                disabled={index === todos.length - 1 || todos[index].pinned}
+              >
+                <AiFillCaretDown />
+              </button>
+              <button className="delete-button" onClick={() => deleteTodo(todo.id)}>
+                ✖
+              </button>
+              <button className="pin-button" onClick={() => pinTodo(todo.id)}>
+                <FaThumbtack color={todo.pinned ? 'blue' : 'black'} />
+              </button>
+              
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className='todo-add'>
+        <div className='add-text'>
+          <input
+            className="todo-input"
+            type="text"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            onKeyPress={handleKeyPress}
+          />
+          <button className="add-button" onClick={addTodo}>Add</button>
+        </div>
       </div>
-      <DragDropContext onDragEnd={() => {}}>
-        <Droppable droppableId="todos">
-          {(provided) => (
-            <ul className="todo-list" {...provided.droppableProps} ref={provided.innerRef}>
-              {todos.map((todo, index) => (
-                <Draggable key={todo.id} draggableId={todo.id} index={index}>
-                  {(provided) => (
-                    <li
-                      className="todo-item"
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                    >
-                      <input
-                        type="checkbox" 
-                        className='checkbox'
-                        checked={todo.completed}
-                        onChange={() => toggleComplete(todo.id)}
-                      />
-                      <span className={`todo-text ${todo.completed ? 'completed' : ''}`}>
-                        {todo.text}
-                      </span>
-                      <div className="button-group">
-                        <button className="move-button" onClick={() => moveItem(todo.id, -1)}>⬆</button>
-                        <button className="move-button" onClick={() => moveItem(todo.id, 1)}>⬇</button>
-                        <button className="delete-button" onClick={() => deleteTodo(todo.id)}>✖</button>
-                      </div>
-                    </li>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </ul>
-          )}
-        </Droppable>
-      </DragDropContext>
     </div>
   );
 };
