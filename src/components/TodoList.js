@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTrashAlt, FaThumbtack } from 'react-icons/fa';
+import { FaThumbtack } from 'react-icons/fa';
 import { AiFillCaretUp, AiFillCaretDown } from 'react-icons/ai';
 import database from '../firebase';
 import { ref, onValue, push, remove, update } from 'firebase/database';
@@ -45,6 +45,11 @@ const TodoList = () => {
   };
 
   const pinTodo = (id) => {
+    const pinnedTodo = todos.find(todo => todo.pinned);
+    if (pinnedTodo && pinnedTodo.id !== id) {
+      const unpinRef = ref(database, `todos/${pinnedTodo.id}`);
+      update(unpinRef, { pinned: false });
+    }
     const todoRef = ref(database, `todos/${id}`);
     const updatedTodo = todos.find(todo => todo.id === id);
     update(todoRef, { pinned: !updatedTodo.pinned });
@@ -74,6 +79,8 @@ const TodoList = () => {
     }
   };
 
+  const isAnyPinned = todos.some(todo => todo.pinned);
+
   return (
     <div className="todo-container">
       <h1 className='title'>Todo List</h1>
@@ -100,10 +107,13 @@ const TodoList = () => {
               <button className="delete-button" onClick={() => deleteTodo(todo.id)}>
                 ✖
               </button>
-              <button className="pin-button" onClick={() => pinTodo(todo.id)}>
+              <button 
+                className="pin-button" 
+                onClick={() => pinTodo(todo.id)}
+                disabled={isAnyPinned && !todo.pinned}
+              >
                 <FaThumbtack color={todo.pinned ? 'blue' : 'black'} />
               </button>
-              
             </div>
           </li>
         ))}
